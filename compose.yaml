@@ -1,0 +1,17 @@
+services:
+  quicksilver:
+    build: .
+    restart: unless-stopped
+    environment:
+      QS_ACCESS_PASSWORD: ${QS_ACCESS_PASSWORD:?Ustaw QS_ACCESS_PASSWORD w .env}
+      QS_SECURE_COOKIES: "true"
+      QS_MAX_JOBS: "2"
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=2048m,uid=10001,gid=10001
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

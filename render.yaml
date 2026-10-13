@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: quicksilver-online
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    envVars:
+      - key: QS_ACCESS_PASSWORD
+        sync: false
+      - key: QS_SECURE_COOKIES
+        value: "true"
+      - key: QS_MAX_JOBS
+        value: "2"
+      - key: QS_ALLOW_HTTP_IMAGES
+        value: "false"
