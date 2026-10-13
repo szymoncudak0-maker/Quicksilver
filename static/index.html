@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101318">
+  <link rel="icon" href="/logo.png" type="image/png">
+  <link rel="stylesheet" href="/style.css">
+  <title>Quicksilver ONLINE | Zdjęcia produktów</title>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><img src="/logo.png" alt="" width="42" height="42"><div><strong>Quicksilver <span>WEB</span></strong><small>Zdjęcia produktów z Excela i CSV</small></div></div>
+  <div class="status"><span class="dot"></span> Dostęp online <span class="pill">v2.0</span> <button type="button" class="signout" id="logoutButton">Wyloguj</button></div>
+</header>
+<main class="wrap">
+  <section class="intro">
+    <div class="eyebrow">PRODUCT IMAGE PROCESSOR</div>
+    <h1>Zdjęcia i EAN-y.<br><em>Wszystko na swoim miejscu.</em></h1>
+    <p>Wgraj arkusz, wybierz kolumny i pobierz zdjęcia wraz z gotowym raportem Excel. Bez instalowania Pythona ani aplikacji EXE.</p>
+  </section>
+  <div id="toast" role="alert" aria-live="polite" hidden></div>
+  <div class="layout">
+    <div class="stack">
+      <section class="panel" aria-labelledby="sourceTitle">
+        <div class="panel-head"><div class="step">01</div><div><h2 id="sourceTitle">Plik źródłowy</h2><p>Prześlij XLSX, XLSM lub CSV z kodami EAN i adresami zdjęć</p></div></div>
+        <label class="drop" for="sourceFile" id="dropzone">
+          <div class="file-glyph">↥</div>
+          <strong id="fileLabel">Upuść plik tutaj lub wybierz z dysku</strong>
+          <span>Excel / CSV · maks. 25 MB</span>
+          <input id="sourceFile" type="file" accept=".xlsx,.xlsm,.csv" />
+        </label>
+        <div id="sourceInfo" class="source-info" hidden><div class="inline"><span class="checkmark">✓</span><span id="fileName"></span></div><span id="rowsBadge"></span></div>
+        <div class="field-grid two">
+          <label class="field">Arkusz
+            <select id="sheet" disabled><option>Najpierw wybierz plik</option></select>
+          </label>
+          <label class="field">Dane od wiersza
+            <input id="first_row" type="number" min="1" value="2">
+          </label>
+        </div>
+        <div class="field-grid five">
+          <label class="field">Kolumna EAN<input id="ean_column" value="A" maxlength="3"></label>
+          <label class="field">Zdjęcia od<input id="photo_column" value="B" maxlength="3"></label>
+          <label class="field">Ile kolumn<input id="photo_columns" type="number" min="1" value="11"></label>
+          <label class="field">Max zdjęć / EAN<input id="max_photos" type="number" min="1" value="11"></label>
+        </div>
+        <div class="preview-head"><h3>Podgląd danych</h3><span id="previewNote">Wybierz plik, aby zobaczyć pierwsze wiersze</span></div>
+        <div class="table-wrap"><table id="preview"><thead></thead><tbody><tr><td class="empty">Brak danych do wyświetlenia</td></tr></tbody></table></div>
+      </section>
+      <section class="panel" aria-labelledby="resultTitle">
+        <div class="panel-head"><div class="step">02</div><div><h2 id="resultTitle">Gotowy wynik</h2><p>Zdjęcia w ZIP lub folderach i raport Excel z konkretnymi nagłówkami</p></div></div>
+        <div class="field-grid two">
+          <label class="field">Forma zapisu zdjęć
+            <select id="package_type"><option value="zip">ZIP (domyślnie)</option><option value="folder">Folder ze zdjęciami</option></select>
+          </label>
+          <label class="field">Limit paczki (MB)
+            <input id="batch_limit_mb" type="number" min="0.001" max="100000" step="0.5" value="150">
+          </label>
+        </div>
+        <label class="toggle"><input id="split_batches" type="checkbox" checked><span>Podziel wyniki na paczki według limitu MB</span></label>
+        <div class="hint"><strong>W arkuszu wynikowym:</strong> „Zdjęcie okładki/produktu” oraz „Dodatkowe zdjęcia”. Wewnątrz każdego ZIP-a zdjęcia są bezpośrednio, bez dodatkowego folderu.</div>
+        <div class="hint muted">Przechowywanie wyników: <code id="outputBase">…</code></div>
+      </section>
+    </div>
+    <aside class="stack">
+      <section class="panel compact" aria-labelledby="settingsTitle">
+        <div class="panel-head"><div class="step">⚙</div><div><h2 id="settingsTitle">Ustawienia</h2><p>Dopasuj sposób pobierania zdjęć</p></div></div>
+        <label class="field">Format wynikowych zdjęć
+          <select id="output_format">
+            <option value="webp_png">WEBP → PNG, pozostałe bez zmian</option>
+            <option value="webp_jpg">WEBP → JPG, pozostałe bez zmian</option>
+            <option value="jpg">Wszystkie → JPG</option>
+            <option value="original">Oryginalne formaty</option>
+          </select>
+        </label>
+        <div class="field-grid two">
+          <label class="field">Timeout (sek.)<input id="timeout" type="number" min="5" max="120" value="20"></label>
+          <label class="field">Ponowienia<input id="retries" type="number" min="0" max="5" value="2"></label>
+        </div>
+        <label class="field">Separator dodatkowych zdjęć<input id="separator" value="; " maxlength="10"></label>
+        <details class="advanced"><summary>Opcje importu CSV i HTTPS</summary>
+          <label class="field">Separator CSV<select id="csv_delimiter"><option value="auto">Automatyczny</option><option value=";">Średnik (;)</option><option value=",">Przecinek (,)</option><option value="|">Kreska (|)</option><option value="&#9;">Tabulator</option></select></label>
+          <label class="field">Kodowanie CSV<select id="csv_encoding"><option value="auto">Automatyczne</option><option value="utf-8-sig">UTF-8</option><option value="cp1250">Windows-1250</option><option value="utf-16">UTF-16</option><option value="iso-8859-2">ISO-8859-2</option></select></label>
+          <label class="toggle"><input type="checkbox" id="verify_tls" checked disabled><span>Sprawdzanie certyfikatów HTTPS (zawsze włączone online)</span></label>
+        </details>
+      </section>
+      <section class="panel compact run-panel" aria-labelledby="runTitle">
+        <div class="panel-head"><div class="step">03</div><div><h2 id="runTitle">Uruchom pobieranie</h2><p>Wyniki pojawią się tutaj po zakończeniu</p></div></div>
+        <button class="primary" id="start" disabled>Pobierz zdjęcia i utwórz Excel <span>↗</span></button>
+        <div class="progress-block" id="progressBlock" hidden>
+          <div class="progress-title"><span id="stateText">Trwa pobieranie…</span><strong id="percent">0%</strong></div>
+          <div class="meter"><div id="fill"></div></div>
+          <div class="counters"><span id="rowsCount">Wiersze: 0 / 0</span><span id="photoCount">Zdjęcia: 0</span><span id="errorCount">Błędy: 0</span></div>
+          <button class="secondary" id="cancel">Zatrzymaj pobieranie</button>
+        </div>
+        <div id="result" class="result" hidden>
+          <strong id="resultHeading">Pobieranie zakończone</strong>
+          <p id="resultDetail"></p>
+          <button class="primary" id="download">↓ Pobierz wszystkie wyniki (ZIP)</button>
+          <div id="assets" class="asset-list"></div>
+          <small id="folderInfo"></small>
+        </div>
+        <div class="log-head"><h3>Dziennik</h3><button id="clearLog" class="text-button">Wyczyść widok</button></div>
+        <div id="log" class="log" aria-live="polite">Oczekiwanie na plik źródłowy…</div>
+      </section>
+      <div class="info">ⓘ Pliki źródłowe są przesyłane na serwer. Wyniki są prywatne dla zalogowanej sesji i dostępne przez 2 godziny. Nie przesyłaj poufnych danych bez zgody firmowego IT.</div>
+    </aside>
+  </div>
+  <footer>QUICKSILVER ONLINE · Przetwarzanie zdjęć produktów w przeglądarce</footer>
+</main>
+<div id="loginGate" class="login-gate" hidden>
+  <form id="loginForm" class="login-panel" autocomplete="on">
+    <img src="/logo.png" alt="" width="56" height="56">
+    <p class="login-kicker">QUICKSILVER ONLINE</p>
+    <h2>Witaj ponownie.</h2>
+    <p>Podaj hasło dostępu do firmowej strony, aby rozpocząć.</p>
+    <label class="field" for="loginPassword">Hasło dostępu
+      <input id="loginPassword" name="password" type="password" minlength="1" required autocomplete="current-password" placeholder="Wpisz hasło">
+    </label>
+    <p id="loginError" class="login-error" role="alert"></p>
+    <button id="loginButton" type="submit" class="primary">Zaloguj się <span>→</span></button>
+    <small>Dostęp powinien być zatwierdzony przez administratora IT.</small>
+  </form>
+</div>
+</body>
+</html>
