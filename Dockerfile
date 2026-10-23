@@ -3,7 +3,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 TZ=Europe/Warsaw
 WORKDIR /app
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt && groupadd -g 10001 quicksilver && useradd -u 10001 -g quicksilver -M -s /usr/sbin/nologin quicksilver
-COPY engine.py safe_images.py app_online.py ./
+COPY engine.py safe_images.py app_online.py settlements.py ./
 COPY static/ ./static/
 RUN mkdir -p /tmp/quicksilver && chown -R quicksilver:quicksilver /tmp/quicksilver /app
 USER quicksilver
