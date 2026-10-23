@@ -26,6 +26,7 @@ from starlette.staticfiles import StaticFiles
 
 from engine import Settings, load_source, run
 from safe_images import download_public_image
+from settlements import create_router
 
 ROOT = Path(__file__).resolve().parent
 WORK = Path(tempfile.mkdtemp(prefix="quicksilver_online_"))
@@ -412,5 +413,7 @@ def asset_route(job_id: str, index: int, session=Depends(need_session)):
         fail(404, "Plik nie jest dostępny.")
     return FileResponse(file, filename=file.name)
 
+
+app.include_router(create_router(need_session, need_write))
 
 app.mount("/", StaticFiles(directory=ROOT / "static", html=True), name="static")

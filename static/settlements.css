@@ -1,0 +1,23 @@
+.mode-nav{display:flex;gap:10px;max-width:1460px;margin:24px auto 0;padding:0 clamp(20px,4vw,60px)}
+.mode-tab{background:#222933;color:#c6ced7;border:1px solid #444b55;border-radius:10px;padding:12px 22px;font-weight:700}
+.mode-tab[aria-selected="true"]{border-color:#fb8a35;background:#443025;color:#ffae72}
+[hidden]{display:none!important}
+.settlement-layout{display:flex;flex-direction:column;gap:20px}
+.settlement-grid{display:grid;grid-template-columns:minmax(280px,2fr) minmax(220px,1fr);gap:14px;align-items:end}
+.settlement-actions{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:16px 0}
+.settlement-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.settlement-metric{padding:17px;background:#242b34;border:1px solid #343e4a;border-radius:11px;display:flex;flex-direction:column;gap:6px}
+.settlement-metric span{color:#aab6c6;font-size:12px}
+.settlement-metric strong{font-size:21px;color:#fafafa;letter-spacing:-.5px}
+.settlement-error{background:#512623;border:1px solid #bb685b;color:#fff0e9;border-radius:9px;padding:12px}
+.settlement-note{font-size:12px;color:#bdc4ce;line-height:1.55}
+.settlement-note li{margin-bottom:6px}
+.settlement-tables{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.settlement-search{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.settlement-search input,.settlement-search select{background:#252b36;color:#fff;padding:10px;border:1px solid #414956;border-radius:8px;min-width:180px}
+.settlement-summary{color:#a4b0be;font-size:13px}
+.settlement-download{width:auto;min-width:240px}
+.settlement-pager{display:flex;align-items:center;gap:12px;justify-content:flex-end;margin-top:12px}
+.settlement-pager button{background:#242a32;color:#eff0f3;border:1px solid #474b57;border-radius:7px;padding:8px 12px}
+@media(max-width:950px){.settlement-grid,.settlement-tables{grid-template-columns:1fr}.mode-nav{margin-top:14px}}
+@media(max-width:600px){.settlement-metrics{grid-template-columns:1fr}.mode-tab{padding:10px 13px;font-size:13px}}
