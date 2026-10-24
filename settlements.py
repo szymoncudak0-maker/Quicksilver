@@ -134,7 +134,7 @@ def _sheet_xml(rows, name, options=None):
     header = list(rows[0]) if rows else []
     for j in range(widest):
         label = str(header[j]) if j < len(header) else ''
-        if 'Wyjaśnienie' in label or 'Jak to' in label or 'Prostymi' in label:
+        if any(word in label.lower() for word in ('wyjaśnienie', 'jak to', 'jak rozumieć', 'proste objaśnienie')):
             widths.append(74)
         elif 'Wzór' in label:
             widths.append(52)
@@ -159,6 +159,9 @@ def _sheet_xml(rows, name, options=None):
                          'total':6,'note':7,'warning':8,'positive':9,'negative':10}
         base = style_by_role.get(role, 0)
         height = 34 if role == 'header' else 28 if role in ('note','warning') else 21 if role=='order' else 19
+        for idx, cell in enumerate(values):
+            if idx < len(widths) and widths[idx] >= 50 and isinstance(cell, str) and len(cell) > 70:
+                height = max(height, min(76, 18 * (1 + (len(cell) // 65))))
         xml.append(f'<row r="{row_index}" ht="{height}" customHeight="1">')
         for j, value in enumerate(values,1):
             style = base
