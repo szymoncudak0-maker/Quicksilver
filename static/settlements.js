@@ -11,6 +11,7 @@
     const tbody = document.createElement('tbody');
     for (const item of rows) {
       const row = document.createElement('tr');
+      if (item.category) row.className = item.category.includes('Przychód') ? 'op-revenue' : item.category.includes('Prowizje') ? 'op-commission' : item.category.includes('platformowa') ? 'op-platform' : 'op-unknown';
       columns.forEach(([_,key,currency]) => row.appendChild(newEl('td',currency ? fmt(item[key]) : item[key])));
       tbody.appendChild(row);
     }
@@ -30,7 +31,13 @@
       const box=document.createElement('div'); box.className='settlement-metric';
       box.appendChild(newEl('span',label));box.appendChild(newEl('strong',fmt(value)));byId('settlementMetrics').appendChild(box);
     }
-    table('settlementTypes',[['Rodzaj operacji','name'],['Grupa','category'],['Pozycji','count'],['Suma','total',true]],data.types);
+    const glossary = new Map(data.explanations.map(x=>[x.name,x]));
+    table('settlementTypes',[['Rodzaj operacji','name'],['Rodzaj','category'],['Pozycji','count'],['Suma','total',true],['Proste wyjaśnienie','description']],data.types.map(x=>({...x,description:glossary.get(x.name)?.how || 'Sprawdź tę operację w rozliczeniach Empik.'})));
+    const guide = byId('settlementGuide'); guide.replaceChildren();
+    for(const item of data.guide){const card=document.createElement('article');card.className='settlement-guide-item';
+      const head=newEl('h4',item.title),formula=newEl('div',item.formula),simple=newEl('p',item.simple);
+      formula.className='settlement-formula';card.append(head,formula,simple);guide.append(card);
+    }
     table('settlementGroups',[['Nr rozliczenia','name'],['Zamówień','orders'],['Przychody','revenue',true],['Pobrania','cod',true],['Prowizje brutto','commission_gross',true],['Platformowa brutto','platform_gross',true],['Saldo przed Ads','preliminary',true]],data.settlements);
     table('settlementPayments',[['Typ płatności','name'],['Zamówień','orders'],['Wartość','revenue',true],['Pobrania','cod',true],['Saldo przed Ads','preliminary',true]],data.payments);
     table('settlementDeliveries',[['Metoda dostawy','name'],['Zamówień','orders'],['Wartość','revenue',true],['Saldo przed Ads','preliminary',true]],data.deliveries);
@@ -41,7 +48,7 @@
     byId('settlementResults').hidden=false;
   }
   async function loadOrders() {
-    if (!analysisId) return;
+    if (!analysisId || byId('ordersDetail').hidden) return;
     const qp=new URLSearchParams({q:byId('orderSearch').value.trim(),settlement:byId('settlementFilter').value,offset:String(currentPage*50),limit:'50'});
     const response=await fetch(`/api/settlements/${encodeURIComponent(analysisId)}/orders?${qp}`,{credentials:'same-origin'});
     const data=await response.json();if(!response.ok) throw new Error(data.detail || 'Błąd wyszukiwania');
@@ -55,7 +62,7 @@
     if(!file) return showError('Wybierz plik CSV z Empik.');
     if(file.size>25*1024*1024) return showError('Plik przekracza 25 MB.');
     const ads=byId('settlementAds').value.trim().replace(',','.');
-    const body=new FormData();body.append('file',file,file.name);body.append('ads_cost',ads||'0');
+    const body=new FormData();body.append('file',file,file.name);body.append('ads_cost',ads||'0');body.append('include_details',String(byId('includeDetails').checked));
     const button=byId('calculateSettlements');button.disabled=true;button.textContent='Trwa przeliczanie…';
     try {
       const response=await fetch('/api/settlements/analyze',{method:'POST',credentials:'same-origin',headers:{'X-CSRF-Token':sessionKey},body});
@@ -71,5 +78,12 @@
   byId('prevPage').addEventListener('click',()=>{if(currentPage){currentPage--;loadOrders().catch(e=>showError(e.message))}});
   byId('nextPage').addEventListener('click',()=>{currentPage++;loadOrders().catch(e=>showError(e.message))});
   byId('downloadSettlements').addEventListener('click',()=>{if(analysisId) location.href=`/api/settlements/${encodeURIComponent(analysisId)}/download`});
+  byId('downloadOriginal').addEventListener('click',()=>{if(analysisId) location.href=`/api/settlements/${encodeURIComponent(analysisId)}/source`});
+  byId('toggleOrders').addEventListener('click',()=>{
+    const area=byId('ordersDetail'), next=!area.hidden;area.hidden=next;
+    byId('toggleOrders').setAttribute('aria-expanded',String(!next));
+    byId('toggleOrders').textContent=next?'+ Pokaż szczegółowe zamówienia':'− Ukryj szczegółowe zamówienia';
+    if(!next)loadOrders().catch(e=>showError(e.message));
+  });
   show('photos');
 })();

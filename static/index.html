@@ -14,7 +14,7 @@
 <body>
 <header class="bar">
   <div class="brand"><img src="/logo.png" alt="" width="42" height="42"><div><strong>Quicksilver <span>WEB</span></strong><small>Zdjęcia produktów z Excela i CSV</small></div></div>
-  <div class="status"><span class="dot"></span> Dostęp online <span class="pill">v2.0</span> <button type="button" class="signout" id="logoutButton">Wyloguj</button></div>
+  <div class="status"><span class="dot"></span> Dostęp online <span class="pill">v2.2</span> <button type="button" class="signout" id="logoutButton">Wyloguj</button></div>
 </header>
 <nav class="mode-nav" aria-label="Funkcje programu"><button type="button" class="mode-tab" id="tabPhotos" aria-selected="true">Zdjęcia EAN</button><button type="button" class="mode-tab" id="tabSettlements" aria-selected="false">Rozliczenia zamówień</button></nav>
 <main class="wrap" id="photoView">
@@ -122,18 +122,19 @@
         <label class="field">Plik z rozliczeniami<input id="settlementFile" type="file" accept=".csv,text/csv" required></label>
         <label class="field">Koszty Empik Ads (zł, opcjonalnie, poza CSV)<input id="settlementAds" type="text" inputmode="decimal" value="0.00" placeholder="0.00"></label>
       </div>
-      <div class="settlement-actions"><p class="settlement-summary">Uwzględniamy prowizję netto, preferowaną, raty, zwroty, Premium, opłatę platformową i obie formy płatności.</p><button id="calculateSettlements" type="submit" class="primary settlement-download">Przelicz rozliczenia</button></div>
+      <div class="settlement-options"><label class="settlement-check"><input type="checkbox" id="includeDetails" checked> Dodaj rozbicie każdego zamówienia w raporcie Excel</label><span>W dużych plikach szczegóły mogą zajmować wiele wierszy. Dane źródłowe dołączamy zawsze.</span></div><div class="settlement-actions"><p class="settlement-summary">Uwzględniamy prowizję netto, preferowaną, raty, zwroty, Premium, opłatę platformową i obie formy płatności.</p><button id="calculateSettlements" type="submit" class="primary settlement-download">Przelicz rozliczenia</button></div>
       <p id="settlementError" class="settlement-error" role="alert" hidden></p>
     </form>
     <section id="settlementResults" hidden class="settlement-layout">
-      <section class="panel"><div class="panel-head"><div class="step">02</div><div><h2>Podsumowanie finansowe</h2><p id="settlementCount"></p></div></div><div id="settlementMetrics" class="settlement-metrics"></div><div class="settlement-actions"><p class="settlement-summary">Saldo jest orientacyjne: VAT liczony na poziomie zamówień; porównaj fakturę i P24.</p><button id="downloadSettlements" class="primary settlement-download" type="button">↓ Pobierz pełne rozliczenie XLSX</button></div><ul id="settlementNotes" class="settlement-note"></ul></section>
+      <section class="panel"><div class="panel-head"><div class="step">02</div><div><h2>Podsumowanie finansowe</h2><p id="settlementCount"></p></div></div><div id="settlementMetrics" class="settlement-metrics"></div><div class="settlement-actions"><p class="settlement-summary">Saldo jest orientacyjne: VAT liczony na poziomie zamówień; porównaj fakturę i P24.</p><div class="settlement-downloads"><button id="downloadSettlements" class="primary settlement-download" type="button">↓ Pobierz czytelny raport Excel</button><button id="downloadOriginal" class="settlement-secondary" type="button">↓ Pobierz oryginalny plik CSV</button></div></div><ul id="settlementNotes" class="settlement-note"></ul></section>
       <div class="settlement-tables">
-        <section class="panel"><div class="preview-head"><h3>Wszystkie rodzaje operacji</h3></div><div class="table-wrap"><table id="settlementTypes"></table></div></section>
+        <section class="panel"><div class="preview-head"><h3>Wszystkie rodzaje operacji</h3></div><p class="settlement-hint">Przy każdej pozycji opisujemy, za co jest pobierana kwota i jak ją odczytać.</p><div class="table-wrap"><table id="settlementTypes"></table></div></section>
         <section class="panel"><div class="preview-head"><h3>Numery rozliczeń</h3></div><div class="table-wrap"><table id="settlementGroups"></table></div></section>
         <section class="panel"><div class="preview-head"><h3>Formy płatności</h3></div><div class="table-wrap"><table id="settlementPayments"></table></div></section>
         <section class="panel"><div class="preview-head"><h3>Metody dostawy</h3></div><div class="table-wrap"><table id="settlementDeliveries"></table></div></section>
       </div>
-      <section class="panel"><div class="panel-head"><div class="step">03</div><div><h2>Rozliczenia dla poszczególnych zamówień</h2><p>Wyszukaj numer zamówienia lub filtruj numer rozliczenia</p></div></div><div class="settlement-search"><input id="orderSearch" type="search" placeholder="Numer zamówienia"><select id="settlementFilter"><option value="">Wszystkie rozliczenia</option></select></div><div class="table-wrap" style="margin-top:16px"><table id="settlementOrders"></table></div><div class="settlement-pager"><button type="button" id="prevPage">← Poprzednie</button><span id="pageInfo"></span><button type="button" id="nextPage">Następne →</button></div></section>
+      <section class="panel"><div class="panel-head"><div class="step">03</div><div><h2>Jak to dokładnie wyliczamy?</h2><p>Osiem kroków, bez księgowego żargonu</p></div></div><div id="settlementGuide" class="settlement-guide"></div></section>
+      <section class="panel"><div class="panel-head"><div class="step">04</div><div><h2>Rozliczenia pojedynczych zamówień</h2><p>Opcjonalne. Przy dużym pliku nie trzeba przewijać tysięcy zamówień.</p></div></div><button id="toggleOrders" type="button" class="settlement-toggle" aria-expanded="false">+ Pokaż szczegółowe zamówienia</button><div id="ordersDetail" hidden><div class="settlement-search"><input id="orderSearch" type="search" placeholder="Numer zamówienia"><select id="settlementFilter"><option value="">Wszystkie rozliczenia</option></select></div><div class="table-wrap" style="margin-top:16px"><table id="settlementOrders"></table></div><div class="settlement-pager"><button type="button" id="prevPage">← Poprzednie</button><span id="pageInfo"></span><button type="button" id="nextPage">Następne →</button></div></div></section>
     </section>
   </div>
 </main>

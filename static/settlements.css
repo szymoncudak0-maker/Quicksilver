@@ -21,3 +21,26 @@
 .settlement-pager button{background:#242a32;color:#eff0f3;border:1px solid #474b57;border-radius:7px;padding:8px 12px}
 @media(max-width:950px){.settlement-grid,.settlement-tables{grid-template-columns:1fr}.mode-nav{margin-top:14px}}
 @media(max-width:600px){.settlement-metrics{grid-template-columns:1fr}.mode-tab{padding:10px 13px;font-size:13px}}
+
+/* Accounting improvements v2.2 */
+.settlement-options{background:#202933;border:1px solid #3a4b5c;border-radius:12px;padding:12px 16px;display:grid;gap:5px;margin:16px 0 3px}
+.settlement-check{display:flex;align-items:center;gap:10px;color:#f2f5f8;font-weight:650;font-size:14px;cursor:pointer}
+.settlement-check input{accent-color:#ff9b51;width:18px;height:18px}
+.settlement-options span{color:#aebccb;font-size:12px;line-height:1.5}
+.settlement-downloads{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.settlement-secondary,.settlement-toggle{background:#253342;border:1px solid #576678;color:#ebf3f9;border-radius:9px;padding:12px 17px;font-weight:650;cursor:pointer}
+.settlement-toggle{margin:6px 0 16px;width:100%;text-align:left;font-size:14px}
+.settlement-toggle:hover,.settlement-secondary:hover{background:#314458;border-color:#ff9b51}
+.settlement-hint{color:#9baec0;font-size:13px;margin:0 0 12px}
+#settlementTypes td:last-child{min-width:290px;max-width:440px;white-space:normal;line-height:1.55;color:#ccd7e4}
+#settlementTypes td:first-child{font-weight:650;min-width:185px;white-space:normal}
+#settlementTypes .op-revenue{background:rgba(45,130,84,.16)}
+#settlementTypes .op-commission{background:rgba(184,93,63,.15)}
+#settlementTypes .op-platform{background:rgba(187,137,51,.16)}
+#settlementTypes .op-unknown{background:rgba(160,66,58,.20)}
+.settlement-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.settlement-guide-item{background:#222d39;border:1px solid #35485a;border-radius:11px;padding:16px;line-height:1.45}
+.settlement-guide-item h4{font-size:15px;margin:0 0 10px;color:#f4f6fa}
+.settlement-guide-item p{margin:9px 0 0;font-size:13px;color:#bccbd9}
+.settlement-formula{color:#ffbd8c;font-weight:650;font-size:13px}
+@media(max-width:600px){.settlement-downloads{width:100%}.settlement-downloads button{width:100%}}
