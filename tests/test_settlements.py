@@ -36,12 +36,12 @@ def test_unknown_not_silently_included():
     assert result['totals']['unknown']==Decimal('-99.00')
     assert any('Nowa opłata' in x for x in result['notices'])
 
-def test_xlsx_never_mentions_quicksilver_and_has_seven_sheets(tmp_path):
+def test_xlsx_never_mentions_quicksilver_and_has_nine_sheets(tmp_path):
     result,ops=analyze(SAMPLE)
     file=tmp_path/'settlement.xlsx'
     export(result,ops,file)
     with ZipFile(file) as z:
-        assert len([x for x in z.namelist() if x.startswith('xl/worksheets/sheet')])==7
+        assert len([x for x in z.namelist() if x.startswith('xl/worksheets/sheet')])==9
         for name in z.namelist():
             if name.endswith('.xml'): ET.fromstring(z.read(name))
         assert b'Quicksilver' not in b''.join(z.read(n) for n in z.namelist() if n.endswith('.xml'))
