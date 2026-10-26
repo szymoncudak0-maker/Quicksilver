@@ -370,6 +370,11 @@ def split_output(folder, products, errors, settings, emit):
     return len(batches), oversized
 
 
+def max_output_bytes():
+    """Total photo-data ceiling; 1 MB means 1,000,000 bytes."""
+    return max(1, int(os.getenv("QS_MAX_OUTPUT_MB", "5000"))) * 1_000_000
+
+
 def run(source, sheet_name, output, settings, emit=lambda *a: None, stop=None, fetch=download):
     settings.validate()
     stop = stop or Event()
@@ -389,7 +394,7 @@ def run(source, sheet_name, output, settings, emit=lambda *a: None, stop=None, f
         cancelled = False
         count = 0
         result_bytes = 0
-        max_result_bytes = max(1, int(os.getenv("QS_MAX_OUTPUT_MB", "5000"))) * 1_000_000
+        max_result_bytes = max_output_bytes()
         batch_count, oversized = 1, 0
         def issue(row, ean, url, reason):
             errors.append((row, ean, url, reason))
