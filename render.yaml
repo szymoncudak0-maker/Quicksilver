@@ -11,5 +11,7 @@ services:
         value: "true"
       - key: QS_MAX_JOBS
         value: "2"
+      - key: QS_MAX_OUTPUT_MB
+        value: "5000"
       - key: QS_ALLOW_HTTP_IMAGES
         value: "false"

@@ -123,7 +123,8 @@ async function poll() {
       if (hasResults) {
         $('result').hidden = false;
         $('resultHeading').textContent=job.state==='cancelled'?'Zatrzymano, dostępne wyniki częściowe':'Gotowe! Wszystkie pliki przygotowane';
-        $('resultDetail').textContent=`${job.products||0} EAN-ów · ${job.photos||0} zdjęć · ${job.errors||0} błędów · ${job.batches||1} paczek`;
+        $('resultDetail').textContent=`${job.products||0} EAN-ów · ${job.photos||0} zdjęć · ${job.errors||0} błędów · ${job.batches||1} paczek` + (job.bundle_skipped ? ' · Duży wynik: pobierz paczki osobno poniżej' : '');
+        $('download').hidden = Boolean(job.bundle_skipped);
         $('folderInfo').textContent=`Folder wyników: ${job.folder||''} · Pliki na serwerze są usuwane po 2 godzinach. Pobierz je na swój komputer.`;
         const assetList=$('assets');assetList.replaceChildren();
         for(const asset of (job.artifacts||[])){
