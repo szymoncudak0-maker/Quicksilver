@@ -21,6 +21,7 @@ from zipfile import ZipFile, ZIP_STORED
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
+from openpyxl.utils import get_column_letter
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
 
@@ -135,6 +136,27 @@ def cell_view(cell):
     return str(cell.value)[:180] if cell.value is not None else ""
 
 
+def detect_photo_columns(ws):
+    """Suggest EAN and photo columns from column names without overwriting data."""
+    headers = [str(ws.cell(1, col).value or '').lower().replace('_', ' ')
+               for col in range(1, min(ws.max_column or 0, 60) + 1)]
+    ean_idx = next((i + 1 for i, name in enumerate(headers)
+                    if any(word in name.split() for word in ('ean', 'gtin'))), None)
+    photos = [i + 1 for i, name in enumerate(headers)
+              if any(word in name for word in ('zdjec', 'zdjęc', 'photo', 'image', 'foto'))]
+    if not ean_idx or not photos:
+        return None
+    first = next((i for i in photos if i != ean_idx), None)
+    if not first:
+        return None
+    photo_set = set(photos)
+    columns = 0
+    while columns < 11 and (first + columns) in photo_set:
+        columns += 1
+    return {'ean_column': get_column_letter(ean_idx),
+            'photo_column': get_column_letter(first), 'photo_columns': columns}
+
+
 def preview(path: Path, sheet: str | None = None, start=1):
     wb = load_source(path, Settings(verify_tls=True))
     try:
@@ -149,7 +171,8 @@ def preview(path: Path, sheet: str | None = None, start=1):
         rows = [[cell_view(c) for c in row] for row in ws.iter_rows(
             min_row=first, max_row=min(ws.max_row, first + 5), max_col=cols)]
         return {"sheets": sheets, "sheet": sheet, "rows": rows, "start_row": first,
-                "total_rows": ws.max_row, "visible_cols": cols}
+                "total_rows": ws.max_row, "visible_cols": cols,
+                "detected_columns": detect_photo_columns(ws)}
     finally:
         wb.close()
 
@@ -224,8 +247,10 @@ def worker(job_id, source, sheet, settings):
     except Exception as exc:
         with LOCK:
             job["state"] = "failed"
-            job["message"] = str(exc)[:220]
-            job["logs"].append("Przetwarzanie nie powiodło się. Sprawdź plik i ustawienia.")
+            detail = str(exc).strip() or type(exc).__name__
+            job["message"] = detail[:300]
+            job["logs"].append("Przetwarzanie nie powiodło się: " + job["message"])
+            job["logs"].append("Sprawdź wskazane kolumny, dostępność zdjęć i limit 500 MB na zadanie.")
     finally:
         with LOCK:
             job["finished"] = time.time()

@@ -70,10 +70,17 @@ async function upload(file) {
     const sheet = $('sheet'); sheet.replaceChildren();
     for (const name of response.sheets) {const option=document.createElement('option');option.value=name;option.textContent=name;sheet.appendChild(option)}
     sheet.value=response.sheet;sheet.disabled=false;renderPreview(response);
+    const suggested = response.detected_columns;
+    if (suggested) {
+      $('ean_column').value = suggested.ean_column;
+      $('photo_column').value = suggested.photo_column;
+      $('photo_columns').value = suggested.photo_columns;
+      $('max_photos').value = suggested.photo_columns;
+    }
     $('start').disabled = false;
     $('log').textContent = `Wczytano plik: ${response.file_name}\nArkusze: ${response.sheets.join(', ')}\nGotowe do pobierania.`;
     $('progressBlock').hidden = true;$('result').hidden = true;
-    message('Plik został wczytany.', true);
+    message(suggested ? `Plik wczytany. EAN: kolumna ${suggested.ean_column}, zdjęcia: od ${suggested.photo_column} (${suggested.photo_columns} kolumn).` : 'Plik został wczytany.', true);
   } catch(e) {
     $('fileLabel').textContent='Upuść plik tutaj lub wybierz z dysku';
     message(`Błąd wczytywania: ${e.message}`);
