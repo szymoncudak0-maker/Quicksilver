@@ -218,6 +218,17 @@ def zip_files(folder, target):
                 zipf.write(item, arcname=item.relative_to(folder).as_posix())
 
 
+MAX_BUNDLE_BYTES = 600 * 1_000_000
+
+
+def should_create_bundle(folder, settings):
+    """Large ZIP-mode jobs provide their batch ZIPs directly, without a duplicate archive."""
+    if settings.package_type != "zip":
+        return True
+    total = sum(file.stat().st_size for file in folder.rglob("*") if file.is_file())
+    return total <= MAX_BUNDLE_BYTES
+
+
 def worker(job_id, source, sheet, settings):
     with LOCK:
         job = JOBS[job_id]
@@ -231,14 +242,23 @@ def worker(job_id, source, sheet, settings):
             job["state"] = "packing"
             job["logs"].append("Tworzenie archiwum do pobrania…")
         folder = Path(result["folder"])
-        package_path = job["work"] / f"{folder.name}_wyniki.zip"
-        zip_files(folder, package_path)
+        create_bundle = should_create_bundle(folder, settings)
+        package_path = job["work"] / f"{folder.name}_wyniki.zip" if create_bundle else None
+        if create_bundle:
+            zip_files(folder, package_path)
+        else:
+            with LOCK:
+                job["logs"].append(
+                    "Duże zadanie: nie tworzę dodatkowego wielkiego ZIP-a. "
+                    "Pobierz paczki zdjęć i raporty Excel osobno poniżej."
+                )
         assets = []
         for f in sorted(folder.rglob("wynik.xlsx")) + sorted(folder.rglob("zdjecia.zip")):
             assets.append({"path": f, "filename": f.name, "location": f.parent.relative_to(folder).as_posix(),
                            "kind": "excel" if f.name == "wynik.xlsx" else "photos"})
         with LOCK:
             job["bundle"] = package_path
+            job["bundle_skipped"] = not create_bundle
             job["artifacts"] = [{k:v for k,v in a.items() if k != "path"} | {"index": i}
                                 for i,a in enumerate(assets)]
             job["files"] = [a["path"] for a in assets]
@@ -250,7 +270,7 @@ def worker(job_id, source, sheet, settings):
             detail = str(exc).strip() or type(exc).__name__
             job["message"] = detail[:300]
             job["logs"].append("Przetwarzanie nie powiodło się: " + job["message"])
-            job["logs"].append("Sprawdź wskazane kolumny, dostępność zdjęć i limit 500 MB na zadanie.")
+            job["logs"].append("Sprawdź wskazane kolumny, dostępność zdjęć i limit " + os.getenv("QS_MAX_OUTPUT_MB", "5000") + " MB na zadanie.")
     finally:
         with LOCK:
             job["finished"] = time.time()
@@ -259,7 +279,7 @@ def worker(job_id, source, sheet, settings):
 
 def job_status(job):
     allowed = ("id", "state", "progress", "processed", "total", "photos", "products", "errors",
-               "batches", "oversized_batches", "cancelled", "message", "logs", "artifacts")
+               "batches", "oversized_batches", "cancelled", "message", "logs", "artifacts", "bundle_skipped")
     result = {key: job[key] for key in allowed if key in job}
     if job.get("folder"):
         result["folder"] = Path(job["folder"]).name
