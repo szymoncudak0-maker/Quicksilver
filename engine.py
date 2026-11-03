@@ -45,8 +45,25 @@ class Settings:
     split_batches: bool = True
     batch_limit_mb: float = 150.0
     package_type: str = "zip"
+    include_title: bool = False
+    title_column: str = ""
+    include_description: bool = False
+    description_column: str = ""
+    include_attributes: bool = False
+    attribute_columns: tuple[str, ...] = ()
 
     def validate(self):
+        for key in ("include_title", "include_description", "include_attributes"):
+            if type(getattr(self, key)) is not bool:
+                raise ValueError("Nieprawidłowe ustawienia dodatkowych pól.")
+        if self.include_attributes and not self.attribute_columns:
+            raise ValueError("Zaznacz kolumny dodatkowych atrybutów.")
+        if len(self.attribute_columns) > 50 or len(set(self.attribute_columns)) != len(self.attribute_columns):
+            raise ValueError("Można wybrać maksymalnie 50 różnych atrybutów.")
+        optional_columns = ((self.title_column,) if self.include_title else ()) + ((self.description_column,) if self.include_description else ()) + (self.attribute_columns if self.include_attributes else ())
+        for col in optional_columns:
+            if not isinstance(col, str) or not re.fullmatch(r"[A-Z]{1,3}", col) or column_index_from_string(col) > 16384:
+                raise ValueError("Wybierz poprawną kolumnę dla tytułu, opisu i atrybutów.")
         if self.package_type not in ("zip", "folder"):
             raise ValueError("Format paczki musi być ZIP lub folder.")
         if not isinstance(self.split_batches, bool):
@@ -244,13 +261,55 @@ def image_bytes(raw, mode):
             return buf.getvalue(), ".jpg"
 
 
-def export_report(folder, products, errors, settings):
+def text_from_cell(cell):
+    """Return readable source text without turning it into a formula in the final Excel."""
+    value = cell.value
+    return "" if value is None else str(value)
+
+
+def extra_headers(settings, worksheet):
+    """Preserve the selected source column names, adding a suffix only on collisions."""
+    columns = settings.attribute_columns if settings.include_attributes else ()
+    seen = {'Typ', 'EAN', 'Zdjęcie okładki/produktu', 'Dodatkowe zdjęcia'}
+    if settings.include_title:
+        seen.add('Tytuł empik.com')
+    if settings.include_description:
+        seen.add('Opis empik.com')
+    headers = []
+    for col in columns:
+        cell = worksheet.cell(1, column_index_from_string(col))
+        name = text_from_cell(cell).strip() or f'Atrybut {col}'
+        if name in seen:
+            name = f'{name} ({col})'
+        seen.add(name)
+        headers.append(name)
+    return headers
+
+
+def export_report(folder, products, errors, settings, metadata=None, attr_headers=None):
+    metadata = metadata or {}
+    attr_headers = attr_headers or []
     wb = Workbook()
     ws = wb.active
     ws.title = "Zdjęcia"
-    ws.append(["Typ", "EAN", "Zdjęcie okładki/produktu", "Dodatkowe zdjęcia"])
+    headers = ["Typ", "EAN", "Zdjęcie okładki/produktu", "Dodatkowe zdjęcia"]
+    if settings.include_title:
+        headers.append("Tytuł empik.com")
+    if settings.include_description:
+        headers.append("Opis empik.com")
+    if settings.include_attributes:
+        headers.extend(attr_headers)
+    ws.append(headers)
     for ean, names in products.items():
-        ws.append(["singiel", ean, names[0] if names else "", settings.separator.join(names[1:])])
+        extra = metadata.get(ean, {})
+        values = ["singiel", ean, names[0] if names else "", settings.separator.join(names[1:])]
+        if settings.include_title:
+            values.append(extra.get('title', ''))
+        if settings.include_description:
+            values.append(extra.get('description', ''))
+        if settings.include_attributes:
+            values.extend(extra.get(f'attr:{col}', '') for col in settings.attribute_columns)
+        ws.append(values)
     issues = wb.create_sheet("Błędy")
     issues.append(["Wiersz źródłowy", "EAN", "Kolumna / link", "Powód"])
     for entry in errors:
@@ -259,20 +318,24 @@ def export_report(folder, products, errors, settings):
         sheet.freeze_panes = "A2"
         sheet.auto_filter.ref = sheet.dimensions
         for cell in sheet[1]:
+            if isinstance(cell.value, str):
+                cell.data_type = "s"  # Selected source headers must not become formulas.
             cell.fill = PatternFill("solid", fgColor="F58220")
             cell.font = Font(bold=True, color="161616")
         for row in sheet.iter_rows(min_row=2):
             for cell in row:
                 if isinstance(cell.value, str):
-                    cell.data_type = "s"  # Nie wykonuj formuł pochodzących z danych.
+                    cell.data_type = "s"  # Never evaluate untrusted content as formulas.
                 cell.alignment = Alignment(vertical="top", wrap_text=True)
         sheet.column_dimensions["A"].width = 23
         sheet.column_dimensions["B"].width = 23
     ws.column_dimensions["A"].width = 14
     ws.column_dimensions["C"].width = 32
     ws.column_dimensions["D"].width = 90
+    for idx, header in enumerate(headers[4:], 5):
+        ws.column_dimensions[get_column_letter(idx)].width = 65 if header == 'Opis empik.com' else 43 if header == 'Tytuł empik.com' else 30
     for row in range(2, ws.max_row + 1):
-        ws.row_dimensions[row].height = max(20, 15 * math.ceil(len(str(ws.cell(row, 4).value or "")) / 85))
+        ws.row_dimensions[row].height = min(100, max(20, 15 * math.ceil(len(str(ws.cell(row, 4).value or "")) / 85)))
     issues.column_dimensions["C"].width = 60
     issues.column_dimensions["D"].width = 65
     for cell in ws["B"][1:]:
@@ -327,7 +390,7 @@ def archive_photos(folder, names):
     return destination
 
 
-def split_output(folder, products, errors, settings, emit):
+def split_output(folder, products, errors, settings, emit, metadata=None, attr_headers=None):
     photos = folder / "zdjecia"
     limit_bytes = round(settings.batch_limit_mb * 1_000_000)
     batches = plan_batches(products, photos, limit_bytes)
@@ -353,7 +416,7 @@ def split_output(folder, products, errors, settings, emit):
             warning = f"EAN przekracza limit paczki: {size / 1_000_000:.3f} MB. Zdjęcia pozostawiono razem."
             batch_errors.append(("", next(iter(group)), "", warning))
             emit("log", warning)
-        export_report(batch, group, batch_errors, settings)
+        export_report(batch, group, batch_errors, settings, metadata, attr_headers)
         for names in group.values():
             for name in names:
                 (photos / name).replace(target / name)
@@ -388,6 +451,8 @@ def run(source, sheet_name, output, settings, emit=lambda *a: None, stop=None, f
         photos = folder / "zdjecia"
         photos.mkdir()
         products, seen, errors = {}, {}, []
+        metadata = {}
+        attr_headers = extra_headers(settings, ws)
         total = ws.max_row - settings.first_row + 1
         ean_col = column_index_from_string(settings.ean_column)
         start = column_index_from_string(settings.photo_column)
@@ -418,6 +483,23 @@ def run(source, sheet_name, output, settings, emit=lambda *a: None, stop=None, f
                     continue
                 names = products.setdefault(ean, [])
                 known = seen.setdefault(ean, set())
+                extra = metadata.setdefault(ean, {})
+                requested = []
+                if settings.include_title:
+                    requested.append(('title', settings.title_column))
+                if settings.include_description:
+                    requested.append(('description', settings.description_column))
+                if settings.include_attributes:
+                    requested.extend((f'attr:{col}', col) for col in settings.attribute_columns)
+                for key, column in requested:
+                    new_value = text_from_cell(ws.cell(row, column_index_from_string(column)))
+                    if not new_value.strip():
+                        continue
+                    existing = extra.get(key)
+                    if existing is None:
+                        extra[key] = new_value
+                    elif existing != new_value:
+                        issue(row, ean, column, 'Różne wartości dla tego samego EAN. Zachowano pierwszą niepustą wartość.')
                 had_links = False
                 for c in photo_cells:
                     if len(names) >= settings.max_photos:
@@ -461,10 +543,10 @@ def run(source, sheet_name, output, settings, emit=lambda *a: None, stop=None, f
         except Cancelled:
             cancelled = True
         finally:
-            export_report(folder, products, errors, settings)
+            export_report(folder, products, errors, settings, metadata, attr_headers)
         if settings.split_batches:
             emit("log", "Tworzenie paczek i Exceli — całe EAN-y pozostają razem…")
-            batch_count, oversized = split_output(folder, products, errors, settings, emit)
+            batch_count, oversized = split_output(folder, products, errors, settings, emit, metadata, attr_headers)
         else:
             if settings.package_type == "zip":
                 emit("log", "Pakowanie zdjęć do zdjecia.zip…")

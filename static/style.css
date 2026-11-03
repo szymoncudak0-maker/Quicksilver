@@ -10,3 +10,19 @@
 .login-panel{background:#1b2028;border:1px solid #363c46;border-radius:18px;width:min(100%,430px);padding:36px;box-shadow:0 40px 100px #0009}
 .login-panel img{object-fit:contain}.login-panel h2{font-size:30px;margin:8px 0;color:#fafafa;letter-spacing:-.7px}.login-panel p{color:#b2bec9;font-size:13px;line-height:1.65}
 .login-panel .login-kicker{color:var(--orange);letter-spacing:2.5px;font-size:11px;font-weight:700;margin:22px 0 4px}.login-panel .field{display:block;margin:24px 0 0}.login-panel input{width:100%}.login-panel button{margin:8px 0 18px}.login-panel small{color:#7e8d9b}.login-error{min-height:18px;color:#ff9b88!important}
+
+
+/* Optional product metadata and original seller attributes. */
+.product-fields{margin:20px 0;padding:18px;border:1px solid #414853;border-radius:12px;background:#1b222a}
+.product-fields h3{margin:0 0 6px;font-size:17px;color:#f4f5f7}
+.optional-subtle,.optional-help{color:#a9b3c0;font-size:12px;font-weight:400;line-height:1.55}
+.optional-field-row{display:grid;grid-template-columns:minmax(200px,1fr) minmax(160px,1fr);align-items:center;gap:12px;margin-top:14px}
+.optional-field-row select{width:100%;min-width:0;padding:10px 12px;color:#fff;background:#272e38;border:1px solid #475260;border-radius:8px}
+.optional-field-row select:disabled{opacity:.53}
+.optional-attr-toggle{margin-top:16px}
+.attribute-picker{margin-top:12px;padding:12px;border:1px solid #394451;border-radius:10px}
+.attribute-list{max-height:190px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:6px;margin-top:8px}
+.attribute-item{display:flex;gap:9px;align-items:flex-start;padding:6px;border-radius:6px;color:#e8edf3;font-size:13px;cursor:pointer;overflow-wrap:anywhere}
+.attribute-item:hover{background:#303945}
+.attribute-item input{accent-color:#f58220;margin-top:3px}
+@media(max-width:640px){.optional-field-row{grid-template-columns:1fr}.product-fields{padding:12px}}
