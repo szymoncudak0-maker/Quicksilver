@@ -170,9 +170,13 @@ def preview(path: Path, sheet: str | None = None, start=1):
         cols = min(ws.max_column or 2, 14)
         rows = [[cell_view(c) for c in row] for row in ws.iter_rows(
             min_row=first, max_row=min(ws.max_row, first + 5), max_col=cols)]
+        column_options = []
+        for number in range(1, min(ws.max_column or 0, 300) + 1):
+            text = cell_view(ws.cell(1, number)).strip().replace('\r', ' ').replace('\n', ' ')
+            column_options.append({'letter': get_column_letter(number), 'header': text[:90]})
         return {"sheets": sheets, "sheet": sheet, "rows": rows, "start_row": first,
                 "total_rows": ws.max_row, "visible_cols": cols,
-                "detected_columns": detect_photo_columns(ws)}
+                "detected_columns": detect_photo_columns(ws), "column_options": column_options}
     finally:
         wb.close()
 
@@ -183,15 +187,24 @@ def read_settings(data: dict):
     fields = {"ean_column": str, "photo_column": str, "photo_columns": int, "max_photos": int,
               "first_row": int, "separator": str, "output_format": str, "timeout": int,
               "retries": int, "split_batches": bool, "batch_limit_mb": float,
-              "package_type": str, "csv_delimiter": str, "csv_encoding": str}
+              "package_type": str, "csv_delimiter": str, "csv_encoding": str,
+              "include_title": bool, "title_column": str,
+              "include_description": bool, "description_column": str,
+              "include_attributes": bool}
     values = {}
     for field, cast in fields.items():
         if field in data:
-            if field == "split_batches" and type(data[field]) is not bool:
+            if cast is bool and type(data[field]) is not bool:
                 raise ValueError("Nieprawidłowy parametr podziału paczek.")
             values[field] = cast(data[field])
     values["ean_column"] = values.get("ean_column", "A").strip().upper()
     values["photo_column"] = values.get("photo_column", "B").strip().upper()
+    for field in ('title_column', 'description_column'):
+        values[field] = values.get(field, '').strip().upper()
+    cols = data.get('attribute_columns', [])
+    if not isinstance(cols, list) or len(cols) > 50 or not all(isinstance(col, str) for col in cols):
+        raise ValueError('Lista dodatkowych atrybutów musi zawierać wybrane kolumny.')
+    values['attribute_columns'] = tuple(col.strip().upper() for col in cols)
     values["verify_tls"] = True  # W chmurze nigdy nie omijamy certyfikatów HTTPS.
     values["layout"] = "product"
     cfg = Settings(**{**asdict(Settings()), **values})
