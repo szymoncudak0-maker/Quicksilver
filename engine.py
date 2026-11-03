@@ -318,6 +318,8 @@ def export_report(folder, products, errors, settings, metadata=None, attr_header
         sheet.freeze_panes = "A2"
         sheet.auto_filter.ref = sheet.dimensions
         for cell in sheet[1]:
+            if isinstance(cell.value, str):
+                cell.data_type = "s"  # Selected source headers must not become formulas.
             cell.fill = PatternFill("solid", fgColor="F58220")
             cell.font = Font(bold=True, color="161616")
         for row in sheet.iter_rows(min_row=2):
