@@ -49,6 +49,23 @@
           <label class="field">Ile kolumn<input id="photo_columns" type="number" min="1" value="11"></label>
           <label class="field">Max zdjęć / EAN<input id="max_photos" type="number" min="1" value="11"></label>
         </div>
+        <section class="product-fields" aria-labelledby="optionalFieldsTitle">
+          <h3 id="optionalFieldsTitle">Dodatkowe dane w wynikowym Excelu <span class="optional-subtle">(opcjonalnie)</span></h3>
+          <p class="optional-help">Zaznacz tylko potrzebne pola. Wybrane dane zostaną przepisane z arkusza źródłowego do raportu dla każdego EAN-u.</p>
+          <div class="optional-field-row">
+            <label class="toggle"><input id="include_title" type="checkbox"><span>Dodaj „Tytuł empik.com”</span></label>
+            <select id="title_column" aria-label="Kolumna z tytułem" disabled><option value="">Najpierw wczytaj plik</option></select>
+          </div>
+          <div class="optional-field-row">
+            <label class="toggle"><input id="include_description" type="checkbox"><span>Dodaj „Opis empik.com”</span></label>
+            <select id="description_column" aria-label="Kolumna z opisem" disabled><option value="">Najpierw wczytaj plik</option></select>
+          </div>
+          <label class="toggle optional-attr-toggle"><input id="include_attributes" type="checkbox"><span>Dodatkowe atrybuty (zachowaj wybrane kolumny)</span></label>
+          <div id="attributeColumnOptions" class="attribute-picker" hidden>
+            <div class="optional-help">Wybierz kolumny, które chcesz zachować (maks. 50). Ich nagłówki zostaną zachowane w Excelu.</div>
+            <div id="attributeColumnList" class="attribute-list"></div>
+          </div>
+        </section>
         <div class="preview-head"><h3>Podgląd danych</h3><span id="previewNote">Wybierz plik, aby zobaczyć pierwsze wiersze</span></div>
         <div class="table-wrap"><table id="preview"><thead></thead><tbody><tr><td class="empty">Brak danych do wyświetlenia</td></tr></tbody></table></div>
       </section>
