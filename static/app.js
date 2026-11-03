@@ -2,7 +2,8 @@
 const $ = id => document.getElementById(id);
 let sessionKey = '', uploadId = null, jobId = null, lastJob = null, busy = false, toastTimer;
 const editable = ['first_row','ean_column','photo_column','photo_columns','max_photos','package_type','batch_limit_mb',
-                  'split_batches','output_format','timeout','retries','separator','csv_delimiter','csv_encoding','verify_tls'];
+                  'split_batches','output_format','timeout','retries','separator','csv_delimiter','csv_encoding','verify_tls',
+                  'include_title','title_column','include_description','description_column','include_attributes'];
 const numeric = new Set(['first_row','photo_columns','max_photos','timeout','retries','batch_limit_mb']);
 
 async function api(url, data, method = 'POST') {
@@ -32,9 +33,36 @@ function collectSettings() {
   }
   settings.ean_column = settings.ean_column.trim().toUpperCase();
   settings.photo_column = settings.photo_column.trim().toUpperCase();
+  settings.attribute_columns = [...document.querySelectorAll('.attribute-choice:checked')].map(input => input.value);
   return settings;
 }
+function updateOptionalFields() {
+  for (const [checkbox, selector] of [['include_title','title_column'],['include_description','description_column']]) {
+    $(selector).disabled = !$(checkbox).checked || !uploadId;
+  }
+  $('attributeColumnOptions').hidden = !$('include_attributes').checked || !uploadId;
+}
+function renderOptionalColumns(data) {
+  const choices = data.column_options || [];
+  for (const id of ['title_column','description_column']) {
+    const select = $(id), previous = select.value;
+    select.replaceChildren(new Option('Wybierz kolumnę...', ''));
+    choices.forEach(({letter,header}) => select.appendChild(new Option(letter + ' · ' + (header || '(bez nagłówka)'),letter)));
+    select.value = choices.some(c => c.letter === previous) ? previous : '';
+  }
+  const checked = new Set([...document.querySelectorAll('.attribute-choice:checked')].map(x=>x.value));
+  const container = $('attributeColumnList');container.replaceChildren();
+  for (const {letter,header} of choices) {
+    const label=document.createElement('label');label.className='attribute-item';
+    const input=document.createElement('input');input.type='checkbox';input.className='attribute-choice';
+    input.value=letter;input.checked=checked.has(letter);
+    const title=document.createElement('span');title.textContent=letter + ' · ' + (header || '(bez nagłówka)');
+    label.append(input,title);container.append(label);
+  }
+  updateOptionalFields();
+}
 function renderPreview(data) {
+  renderOptionalColumns(data);
   $('previewNote').textContent = `${data.total_rows} wierszy · ${data.sheet}`;
   $('rowsBadge').textContent = `${data.total_rows} wierszy`;
   const head = $('preview').querySelector('thead'), body = $('preview').querySelector('tbody');
@@ -95,6 +123,9 @@ async function start() {
   if (!uploadId || busy) return;
   const settings = collectSettings();
   if (!/^[A-Z]{1,3}$/.test(settings.ean_column) || !/^[A-Z]{1,3}$/.test(settings.photo_column)) return message('Kolumny wpisz literami, np. A, B lub AA.');
+  if (settings.include_title && !settings.title_column) return message('Wybierz kolumnę z tytułem.');
+  if (settings.include_description && !settings.description_column) return message('Wybierz kolumnę z opisem.');
+  if (settings.include_attributes && !settings.attribute_columns.length) return message('Wybierz przynajmniej jedną kolumnę atrybutów.');
   if (!settings.separator || settings.separator.length>10) return message('Separator musi mieć od 1 do 10 znaków.');
   $('progressBlock').hidden = false; $('result').hidden = true;
   $('log').textContent='Rozpoczynanie zadania…';
@@ -200,6 +231,8 @@ async function initialize(){
   $('loginForm').addEventListener('submit',login);
   $('logoutButton').addEventListener('click',logout);
   $('sourceFile').addEventListener('change',e=>upload(e.target.files[0]));
+  for (const id of ['include_title','include_description','include_attributes']) $(id).addEventListener('change',updateOptionalFields);
+  updateOptionalFields();
   $('sheet').addEventListener('change',preview); $('first_row').addEventListener('change',preview);
   $('start').addEventListener('click',start); $('cancel').addEventListener('click',cancel);
   $('download').addEventListener('click',download);
