@@ -41,8 +41,8 @@ def test_export_is_valid_excel_and_preserves_source_data(tmp_path):
     try:
         assert len(book.sheetnames) == 9
         assert book['Podsumowanie']['B2'].value == 100
-        assert book['Dane źródłowe CSV']['K2'].value == '=1+1'
-        assert book['Dane źródłowe CSV']['K2'].data_type == 's'
+        assert book['Dane źródłowe CSV']['J2'].value == '=1+1'
+        assert book['Dane źródłowe CSV']['J2'].data_type == 's'
         assert book['Zamówienia']['C2'].value == '401000-A'
     finally:
         book.close()
