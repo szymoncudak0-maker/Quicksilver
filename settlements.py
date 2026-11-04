@@ -204,23 +204,99 @@ def _styles_xml():
 
 
 def _xlsx(path, sheets):
-    """Generate a compact XLSX with filters, frozen headings and color-coded accounting rows."""
-    with ZipFile(path, 'w', ZIP_DEFLATED, compresslevel=6) as z:
-        types = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>']
-        names = []
-        rels = []
-        for i, (name, values, options) in enumerate(sheets, 1):
-            types.append(f'<Override PartName="/xl/worksheets/sheet{i}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>')
-            names.append(f'<sheet name="{escape(name)}" sheetId="{i}" r:id="rId{i}"/>')
-            rels.append(f'<Relationship Id="rId{i}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet{i}.xml"/>')
-            z.writestr(f'xl/worksheets/sheet{i}.xml', _sheet_xml(values, name, options))
-        types += ['<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>','</Types>']
-        z.writestr('[Content_Types].xml', ''.join(types))
-        z.writestr('_rels/.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>')
-        z.writestr('xl/workbook.xml', '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>' + ''.join(names) + '</sheets></workbook>')
-        z.writestr('xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + ''.join(rels) + '<Relationship Id="rIdSty" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>')
-        z.writestr('xl/styles.xml',_styles_xml())
+    """Create Excel-compatible .xlsx via openpyxl (no hand-built OOXML).
 
+    The previous writer placed sheetFormatPr after cols in worksheet XML.
+    That violates SpreadsheetML order and can trigger Excel repair errors.
+    """
+    from openpyxl import Workbook
+    from openpyxl.cell import WriteOnlyCell
+    from openpyxl.styles import Alignment, Font, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    book = Workbook(write_only=True)
+    book.properties.title = 'Rozliczenia zamówień Empik'
+    book.properties.subject = 'Zestawienie operacji finansowych'
+    book.properties.creator = 'Raport rozliczeń'
+
+    colors = {
+        'header': '263242', 'normal': 'FFFFFF', 'alternate': 'F4F8FC',
+        'order': 'FFF2E6', 'detail': 'EAF2F8', 'total': 'DDEFE5',
+        'note': 'EDF4FE', 'warning': 'FFF0D6',
+        'positive': 'E6F5EB', 'negative': 'FBE9E7', 'zero': 'F2F5F7',
+    }
+    fills = {k: PatternFill(fill_type='solid', fgColor=v) for k, v in colors.items()}
+    fonts = {
+        'normal': Font(name='Aptos', size=10, color='263242'),
+        'header': Font(name='Aptos', size=10, color='FFFFFF', bold=True),
+        'strong': Font(name='Aptos', size=10, color='263242', bold=True),
+    }
+    alignment = Alignment(vertical='center', wrap_text=True)
+    number_format = '#,##0.00 "zł";[Red](#,##0.00) "zł";"-"'
+
+    for name, rows, options in sheets:
+        opts = options or {}
+        sheet = book.create_sheet(name)
+        sheet.sheet_view.showGridLines = False
+        sheet.freeze_panes = 'A2'
+        sheet.sheet_format.defaultRowHeight = 19
+
+        header = list(rows[0]) if rows else []
+        column_count = max(1, max((len(row) for row in rows), default=1))
+        for index in range(column_count):
+            label = str(header[index]) if index < len(header) else ''
+            lower = label.lower()
+            if any(word in lower for word in ('wyjaśnienie', 'jak to', 'jak rozumieć', 'proste objaśnienie')):
+                width = 74
+            elif 'wzór' in lower:
+                width = 52
+            elif any(word in lower for word in ('nazwa', 'rodzaj', 'pozycja')):
+                width = 39
+            elif 'zamówienia' in lower or 'rozliczenia' in lower:
+                width = 24
+            else:
+                width = 19 if len(label) < 19 else min(39, len(label) + 3)
+            sheet.column_dimensions[get_column_letter(index + 1)].width = width
+        if opts.get('filter', True) and len(rows) > 1:
+            sheet.auto_filter.ref = f'A1:{get_column_letter(column_count)}{len(rows)}'
+
+        roles = opts.get('roles', {})
+        for row_index, values in enumerate(rows, 1):
+            role = roles.get(row_index, 'header' if row_index == 1 else 'normal')
+            bg = ('alternate' if row_index % 2 == 0 else 'normal') if role == 'normal' else role
+            if bg not in fills:
+                bg = 'normal'
+            if role == 'header':
+                sheet.row_dimensions[row_index].height = 34
+            elif role in ('note', 'warning'):
+                sheet.row_dimensions[row_index].height = 28
+            elif role == 'order':
+                sheet.row_dimensions[row_index].height = 21
+
+            cells = []
+            for raw in values:
+                if isinstance(raw, Decimal):
+                    value = float(money(raw))
+                elif isinstance(raw, str):
+                    value = ''.join(ch for ch in raw if ch in '\t\n\r' or ord(ch) >= 32)[:32767]
+                else:
+                    value = raw
+
+                cell = WriteOnlyCell(sheet, value=value)
+                if isinstance(raw, str) and raw.startswith('='):
+                    # Imported text is never allowed to become an Excel formula.
+                    cell.data_type = 's'
+                cell_bg = bg
+                if isinstance(raw, Decimal) and role not in ('order', 'total', 'header'):
+                    cell_bg = 'positive' if raw > 0 else 'negative' if raw < 0 else 'zero'
+                cell.fill = fills[cell_bg]
+                cell.font = fonts['header' if role == 'header' else 'strong' if role in ('order', 'total') else 'normal']
+                cell.alignment = alignment
+                if isinstance(raw, Decimal):
+                    cell.number_format = number_format
+                cells.append(cell)
+            sheet.append(cells)
+    book.save(path)
 
 def _serial(o):
     if isinstance(o, Decimal): return str(money(o))
