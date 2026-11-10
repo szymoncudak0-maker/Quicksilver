@@ -33,7 +33,7 @@ class Settings:
     photo_columns: int = 11
     max_photos: int = 11
     first_row: int = 2
-    separator: str = "; "
+    separator: str = ";"
     layout: str = "product"  # Odczyt starych ustawień; raport zawsze ma jeden wiersz na EAN.
     output_format: str = "webp_png"
     image_policy_version: int = 1
@@ -300,9 +300,11 @@ def export_report(folder, products, errors, settings, metadata=None, attr_header
     if settings.include_attributes:
         headers.extend(attr_headers)
     ws.append(headers)
+    # Usuń spacje po średniku także dla starszych ustawień zapisanych jako "; ".
+    photo_separator = re.sub(r";\s+", ";", settings.separator)
     for ean, names in products.items():
         extra = metadata.get(ean, {})
-        values = ["singiel", ean, names[0] if names else "", settings.separator.join(names[1:])]
+        values = ["singiel", ean, names[0] if names else "", photo_separator.join(names[1:])]
         if settings.include_title:
             values.append(extra.get('title', ''))
         if settings.include_description:
