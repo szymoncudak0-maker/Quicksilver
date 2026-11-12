@@ -19,4 +19,4 @@ jobs:
       - name: Zainstaluj wymagania
         run: python -m pip install -r requirements.txt pytest
       - name: Sprawdz rozliczenia i zgodnosc Excel
-        run: python -m pytest -q tests/test_excel_compatibility.py tests/test_settlements.py tests/test_export_22.py tests/test_storage_limits.py tests/test_photo_separator.py
+        run: python -m pytest -q tests/test_excel_compatibility.py tests/test_settlements.py tests/test_export_22.py tests/test_storage_limits.py tests/test_photo_separator.py tests/test_empik_photo_headers.py

@@ -272,9 +272,9 @@ def extra_headers(settings, worksheet):
     columns = settings.attribute_columns if settings.include_attributes else ()
     seen = {'Typ', 'EAN', 'Zdjęcie okładki/produktu', 'Dodatkowe zdjęcia'}
     if settings.include_title:
-        seen.add('Tytuł empik.com')
+        seen.add('Tytuł .com (pełny)')
     if settings.include_description:
-        seen.add('Opis empik.com')
+        seen.add('Opis Empik.com')
     headers = []
     for col in columns:
         cell = worksheet.cell(1, column_index_from_string(col))
@@ -294,9 +294,9 @@ def export_report(folder, products, errors, settings, metadata=None, attr_header
     ws.title = "Zdjęcia"
     headers = ["Typ", "EAN", "Zdjęcie okładki/produktu", "Dodatkowe zdjęcia"]
     if settings.include_title:
-        headers.append("Tytuł empik.com")
+        headers.append("Tytuł .com (pełny)")
     if settings.include_description:
-        headers.append("Opis empik.com")
+        headers.append("Opis Empik.com")
     if settings.include_attributes:
         headers.extend(attr_headers)
     ws.append(headers)
@@ -335,7 +335,7 @@ def export_report(folder, products, errors, settings, metadata=None, attr_header
     ws.column_dimensions["C"].width = 32
     ws.column_dimensions["D"].width = 90
     for idx, header in enumerate(headers[4:], 5):
-        ws.column_dimensions[get_column_letter(idx)].width = 65 if header == 'Opis empik.com' else 43 if header == 'Tytuł empik.com' else 30
+        ws.column_dimensions[get_column_letter(idx)].width = 65 if header == 'Opis Empik.com' else 43 if header == 'Tytuł .com (pełny)' else 30
     for row in range(2, ws.max_row + 1):
         ws.row_dimensions[row].height = min(100, max(20, 15 * math.ceil(len(str(ws.cell(row, 4).value or "")) / 85)))
     issues.column_dimensions["C"].width = 60
