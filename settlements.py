@@ -474,7 +474,7 @@ def export(result, ops, file_path, include_details=True):
     _xlsx(file_path,sheets)
 
 
-def create_router(need_session, need_write):
+def create_router(need_session, need_write, on_analyzed=None):
     router = APIRouter(prefix='/api/settlements')
     def clean():
         now=time.time()
