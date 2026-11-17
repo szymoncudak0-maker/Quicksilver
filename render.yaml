@@ -7,6 +7,10 @@ services:
     envVars:
       - key: QS_ACCESS_PASSWORD
         sync: false
+      - key: QS_ADMIN_PASSWORD
+        sync: false
+      - key: QS_STATS_DATABASE_URL
+        sync: false
       - key: QS_SECURE_COOKIES
         value: "true"
       - key: QS_MAX_JOBS

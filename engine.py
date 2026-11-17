@@ -564,6 +564,7 @@ def run(source, sheet_name, output, settings, emit=lambda *a: None, stop=None, f
         folder = final_folder
         emit("log", f"Zakończono. Wyniki: {folder}")
         return {"folder": str(folder), "photos": count, "products": len(products), "errors": len(errors),
-                "cancelled": cancelled, "batches": batch_count, "oversized_batches": oversized}
+                "cancelled": cancelled, "batches": batch_count, "oversized_batches": oversized,
+                "image_bytes": result_bytes}
     finally:
         wb.close()

@@ -6,7 +6,10 @@ potrzebne byłoby współdzielone repozytorium plików i kolejka zadań.
 """
 from __future__ import annotations
 
+import csv
+import io
 import json
+import logging
 import os
 import secrets
 import shutil
@@ -20,7 +23,7 @@ from pathlib import Path
 from zipfile import ZipFile, ZIP_STORED
 
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Request, UploadFile
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from openpyxl.utils import get_column_letter
 from pydantic import BaseModel
 from starlette.staticfiles import StaticFiles
@@ -28,6 +31,7 @@ from starlette.staticfiles import StaticFiles
 from engine import Settings, load_source, run
 from safe_images import download_public_image
 from settlements import create_router
+from usage_stats import STATS, date_for_timestamp
 
 ROOT = Path(__file__).resolve().parent
 WORK = Path(tempfile.mkdtemp(prefix="quicksilver_online_"))
@@ -37,6 +41,9 @@ JOB_LIFETIME = 2 * 3600
 MAX_JOBS = max(1, min(8, int(os.getenv("QS_MAX_JOBS", "2"))))
 SECURE_COOKIE = os.getenv("QS_SECURE_COOKIES", "true").lower() == "true"
 PASSWORD = os.getenv("QS_ACCESS_PASSWORD", "")
+ADMIN_PASSWORD = os.getenv("QS_ADMIN_PASSWORD", "")
+ADMIN_SESSION_LIFETIME = 60 * 60
+LOGGER = logging.getLogger(__name__)
 COOKIE_NAME = "quicksilver_sid"
 LOCK = threading.RLock()
 SEMAPHORE = threading.BoundedSemaphore(MAX_JOBS)
@@ -44,6 +51,7 @@ SESSIONS: dict[str, dict] = {}
 UPLOADS: dict[str, dict] = {}
 JOBS: dict[str, dict] = {}
 LOGIN_ATTEMPTS: dict[str, list[float]] = defaultdict(list)
+ADMIN_ATTEMPTS: dict[str, list[float]] = defaultdict(list)
 app = FastAPI(title="Quicksilver ONLINE", docs_url=None, redoc_url=None, openapi_url=None)
 
 
@@ -112,6 +120,42 @@ def need_write(request: Request, x_csrf_token: str | None = Header(default=None)
         if origin.rstrip("/") != expected:
             fail(403, "Niedozwolone pochodzenie żądania.")
     return sid, sess
+
+
+def admin_configured():
+    """Fail closed if no unique, sufficiently strong admin secret is configured."""
+    return len(ADMIN_PASSWORD) >= 16 and ADMIN_PASSWORD != PASSWORD
+
+
+def need_admin(session=Depends(need_session)):
+    sid, sess = session
+    with LOCK:
+        unlocked = sess.get("admin_since")
+        if not unlocked or time.time() - unlocked > ADMIN_SESSION_LIFETIME:
+            sess.pop("admin_since", None)
+            fail(403, "Panel administratora wymaga osobnego zalogowania.")
+    return sid
+
+
+def save_usage(event_id, timestamp, kind, status, **metrics):
+    """Usage metrics must never break file processing when the database is unavailable."""
+    try:
+        STATS.record(event_id, date_for_timestamp(timestamp), kind, status, **metrics)
+    except Exception:
+        LOGGER.exception("Nie udało się zapisać zagregowanych statystyk Quicksilvera")
+
+
+def record_settlement_event(event_id, orders, input_bytes):
+    save_usage("s:" + event_id, time.time(), "settlement", "complete",
+               rows_processed=orders, bytes_total=input_bytes)
+
+
+def get_usage_stats():
+    try:
+        return {"overview": STATS.overview(), "daily": STATS.daily(30)}
+    except Exception:
+        LOGGER.exception("Nie udało się odczytać statystyk Quicksilvera")
+        fail(503, "Baza statystyk jest chwilowo niedostępna.")
 
 
 def get_upload(upload_id, sid):
@@ -287,6 +331,16 @@ def worker(job_id, source, sheet, settings):
     finally:
         with LOCK:
             job["finished"] = time.time()
+            metrics = {
+                "rows_processed": job.get("processed", 0),
+                "photos": job.get("photos", 0),
+                "products": job.get("products", 0),
+                "errors": job.get("errors", 0),
+                "bytes_total": job.get("image_bytes", 0),
+            }
+            state = job["state"]
+            created = job["created"]
+        save_usage("p:" + job_id, created, "photo", state, **metrics)
         SEMAPHORE.release()
 
 
@@ -389,6 +443,7 @@ async def upload_file(file: UploadFile = File(...), session=Depends(need_write))
         await file.close()
     with LOCK:
         UPLOADS[identity] = {"sid": sid, "file": target, "created": time.time()}
+    save_usage("u:" + identity, time.time(), "upload", "received", bytes_total=size)
     return {"upload_id": identity, "file_name": Path(file.filename).name, **data}
 
 
@@ -424,6 +479,7 @@ def start_route(data: Start, session=Depends(need_write)):
                "stop": threading.Event(), "message": ""}
         with LOCK:
             JOBS[job_id] = job
+        save_usage("p:" + job_id, job["created"], "photo", "started")
         t = threading.Thread(target=worker, args=(job_id, source, data.sheet, settings), daemon=True)
         t.start()
     except Exception:
@@ -472,6 +528,69 @@ def asset_route(job_id: str, index: int, session=Depends(need_session)):
     return FileResponse(file, filename=file.name)
 
 
-app.include_router(create_router(need_session, need_write))
+class AdminLogin(BaseModel):
+    password: str
+
+
+@app.get("/api/admin/status")
+def admin_status(session=Depends(need_session)):
+    _, sess = session
+    active = bool(sess.get("admin_since") and time.time() - sess["admin_since"] <= ADMIN_SESSION_LIFETIME)
+    return {"enabled": admin_configured(), "unlocked": active}
+
+
+@app.post("/api/admin/login")
+def admin_login(data: AdminLogin, request: Request, session=Depends(need_write)):
+    sid, sess = session
+    if not admin_configured():
+        fail(503, "Panel administratora wymaga osobnego hasła QS_ADMIN_PASSWORD (min. 16 znaków).")
+    remote = request.client.host if request.client else "unknown"
+    now = time.time()
+    with LOCK:
+        attempts = ADMIN_ATTEMPTS[remote]
+        attempts[:] = [stamp for stamp in attempts if now - stamp < 300]
+        if len(attempts) >= 8:
+            fail(429, "Zbyt wiele prób logowania do panelu. Spróbuj później.")
+        if not secrets.compare_digest(data.password.encode(), ADMIN_PASSWORD.encode()):
+            attempts.append(now)
+            fail(401, "Nieprawidłowe hasło administratora.")
+        attempts.clear()
+        sess["admin_since"] = now
+    return {"ok": True}
+
+
+@app.post("/api/admin/logout")
+def admin_logout(session=Depends(need_write)):
+    _, sess = session
+    with LOCK:
+        sess.pop("admin_since", None)
+    return {"ok": True}
+
+
+@app.get("/api/admin/stats")
+def admin_stats(admin=Depends(need_admin)):
+    return get_usage_stats()
+
+
+@app.get("/api/admin/export")
+def admin_export(admin=Depends(need_admin)):
+    data = get_usage_stats()
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(["Data UTC", "Przesłane pliki", "Rozpoczęte zadania zdjęć",
+                     "Ukończone", "Nieudane", "Rozliczenia Empik",
+                     "Zdjęcia", "Produkty EAN", "Błędy", "Bajty zdjęć"])
+    for item in data["daily"]:
+        writer.writerow([item[k] for k in ("date", "uploads", "photo_jobs",
+                         "completed", "failed", "settlements", "photos",
+                         "products", "errors", "photo_bytes")])
+    return Response(content="\ufeff" + buffer.getvalue(),
+                    media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="quicksilver_statystyki.csv"'})
+
+
+
+
+app.include_router(create_router(need_session, need_write, on_analyzed=record_settlement_event))
 
 app.mount("/", StaticFiles(directory=ROOT / "static", html=True), name="static")

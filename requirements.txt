@@ -6,3 +6,6 @@ Pillow>=10.4,<13
 urllib3>=2.2,<3
 certifi>=2024.7
 tzdata>=2025.2
+
+# Trwałe statystyki administratora (PostgreSQL na Render)
+psycopg[binary]>=3.2,<4

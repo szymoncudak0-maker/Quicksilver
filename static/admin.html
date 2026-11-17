@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Quicksilver | Panel administratora</title>
+<link rel="stylesheet" href="/admin.css">
+<script defer src="/admin.js"></script>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/"><img src="/logo.png" alt="" width="42" height="42"><span><strong>QUICKSILVER</strong><small>Statystyki administratora</small></span></a>
+  <a class="return" href="/">Wróć do programu</a>
+</header>
+<main>
+  <section class="intro">
+    <p class="eyebrow">DOSTĘP PRYWATNY</p>
+    <h1>Statystyki wykorzystania</h1>
+    <p>Zagregowane dane o przetwarzaniu zdjęć i rozliczeniach Empik. Bez nazw plików i danych sprzedawców.</p>
+  </section>
+  <div id="message" role="status" aria-live="polite"></div>
+  <section id="unlock" class="card unlock" hidden>
+    <h2>Odblokuj panel administratora</h2>
+    <p>Tutaj wymagane jest osobne hasło administratora. Zwykłe hasło do Quicksilvera nie wystarcza.</p>
+    <form id="adminForm">
+      <label>Hasło administratora<input id="adminPassword" type="password" autocomplete="off" minlength="1" required></label>
+      <button type="submit" id="adminLogin">Odblokuj statystyki</button>
+    </form>
+  </section>
+  <section id="dashboard" hidden>
+    <div class="toolbar">
+      <span id="storage" class="storage"></span>
+      <div class="actions">
+        <button id="refresh" type="button" class="secondary">Odśwież</button>
+        <button id="export" type="button" class="secondary">Pobierz CSV</button>
+        <button id="lock" type="button" class="secondary">Zablokuj panel</button>
+      </div>
+    </div>
+    <p id="storageWarning" class="warning" hidden>Statystyki są obecnie zapisywane tymczasowo. Aby zachować historię po restarcie serwera Render, ustaw trwałą bazę PostgreSQL w QS_STATS_DATABASE_URL.</p>
+    <div class="stats">
+      <article class="card metric"><small>Przesłane pliki zdjęć</small><strong id="uploads">—</strong></article>
+      <article class="card metric"><small>Rozpoczęte zadania zdjęć</small><strong id="photo_jobs">—</strong></article>
+      <article class="card metric"><small>Ukończone zadania zdjęć</small><strong id="completed">—</strong></article>
+      <article class="card metric"><small>Nieudane zadania</small><strong id="failed">—</strong></article>
+      <article class="card metric"><small>Analizy rozliczeń Empik</small><strong id="settlements">—</strong></article>
+      <article class="card metric"><small>Pobrane zdjęcia</small><strong id="photos">—</strong></article>
+      <article class="card metric"><small>Produkty EAN</small><strong id="products">—</strong></article>
+      <article class="card metric"><small>Wykryte błędy zdjęć</small><strong id="errors">—</strong></article>
+      <article class="card metric"><small>Rozmiar zdjęć</small><strong id="photo_bytes">—</strong></article>
+    </div>
+    <section class="card details">
+      <h2>Historia dzienna</h2>
+      <p>Ostatnich 30 dni z zapisanymi operacjami. Daty w UTC; zliczane są wykonane operacje, nie same odwiedziny strony.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Importy</th><th>Zadania</th><th>Ukończone</th><th>Nieudane</th><th>Rozliczenia</th><th>Zdjęcia</th><th>Produkty</th><th>Błędy</th></tr></thead>
+          <tbody id="daily"></tbody>
+        </table>
+      </div>
+    </section>
+  </section>
+</main>
+<footer>Panel widoczny wyłącznie po dodatkowym uwierzytelnieniu administratora.</footer>
+</body>
+</html>

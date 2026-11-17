@@ -114,3 +114,25 @@ uvicorn app_online:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
 Otwórz `http://127.0.0.1:8000` na tym samym komputerze testowym. W publicznym wdrożeniu `QS_SECURE_COOKIES` musi pozostać `true`, a połączenie musi być HTTPS.
+
+
+## Prywatny panel statystyk administratora
+
+Panel: **/admin.html** (nie jest dodany do nawigacji użytkowników).
+
+1. Najpierw zaloguj się do Quicksilvera zwykłym hasłem.
+2. Wejdź bezpośrednio na adres \`https://TWOJA-STRONA/admin.html\`.
+3. Odblokuj panel **osobnym** hasłem z \`QS_ADMIN_PASSWORD\` (co najmniej 16 znaków, inne niż \`QS_ACCESS_PASSWORD\`).
+
+Dane statystyk są zabezpieczone **na serwerze**. Użytkownik znający jedynie hasło do zwykłej strony nie uzyska dostępu do danych przez API. Sesja administratora wygasa po godzinie; można ją wcześniej zakończyć przyciskiem „Zablokuj panel”. Podczas wielu błędnych prób logowania nakładany jest czasowy limit.
+
+**Konfiguracja na Render (Environment):**
+- \`QS_ADMIN_PASSWORD\`: prywatne hasło administratora, nie dodawaj do GitHuba;
+- \`QS_STATS_DATABASE_URL\`: adres połączenia do trwałej bazy **PostgreSQL**, np. utworzonej w Render; ustaw prywatny Internal Database URL, jeśli usługa i baza są w tej samej sieci;
+- Opcjonalnie \`QS_STATS_DB_PATH\`: plik SQLite na zamontowanym **trwałym dysku** dla alternatywnego hostingu.
+
+**Bez \`QS_STATS_DATABASE_URL\`** licznik zapisuje dane w tymczasowym pliku \`/tmp/quicksilver-usage.sqlite3\`. Po restarcie lub nowym deployu Render takie dane mogą zostać utracone. Interfejs wyświetla wyraźne ostrzeżenie. Panel nie odzyskuje statystyk sprzed wdrożenia: dotychczasowe operacje można jedynie oszacować z zachowanych logów hostingowych.
+
+**Zakres licznika:** liczba przesłanych plików do modułu zdjęć, rozpoczętych/ukończonych/nieudanych zadań zdjęciowych, liczba przetworzonych zdjęć i produktów, błędy, łączny rozmiar zdjęć, liczba udanych analiz rozliczeń Empik, dane według dnia UTC i eksport CSV. Nie zapisujemy nazw plików, EAN-ów, URL-i, numerów zamówień ani danych osobowych.
+
+Ważne: sam system haseł zapewnia dostęp wyłącznie **posiadaczowi sekretu administratora**. Nie jest to weryfikacja konkretnej tożsamości użytkownika. Nie udostępniaj hasła innym osobom.
