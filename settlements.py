@@ -503,6 +503,8 @@ def create_router(need_session, need_write, on_analyzed=None):
         except Exception:
             Path(path).unlink(missing_ok=True)
             raise
+        if on_analyzed is not None:
+            on_analyzed(key, len(result['orders']), len(content))
         result.pop('source_rows', None)  # Already written to XLSX; do not retain a duplicate in RAM.
         with LOCK:
             RESULTS[key]={'sid':sid,'created':time.time(),'data':result,'path':Path(path),'original_bytes':content,'original_name':Path(file.filename or 'zamowienia.csv').name}
