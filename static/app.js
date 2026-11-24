@@ -174,29 +174,42 @@ async function cancel() {
   try {await api(`/api/jobs/${jobId}/cancel`,{}); $('cancel').disabled=true;message('Zlecono zatrzymanie. Poczekaj na bieżące zdjęcie.',true)}
   catch(e) {message(e.message)}
 }
+// Native browser downloads stream files to disk instead of buffering large ZIPs
+// into a single fetch() Blob in JavaScript memory.
+function browserDownload(url, filename) {
+  const link=document.createElement('a');
+  link.href=url;
+  link.download=filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
 async function downloadSingle(index,filename) {
   if(!jobId)return;
   try {
-    const response=await fetch(`/api/jobs/${jobId}/assets/${index}`,{credentials:'same-origin'});
-    if(!response.ok)throw new Error('Nie udało się pobrać pliku.');
-    const blob=await response.blob(),url=URL.createObjectURL(blob);
-    const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
-  }catch(e){message(e.message)}
+    // Preflight checks auth and whether the job still exists, without downloading bytes.
+    const job=await api('/api/jobs/'+encodeURIComponent(jobId),undefined,'GET');
+    if(!['complete','cancelled'].includes(job.state) ||
+       !(job.artifacts||[]).some(asset=>asset.index===index))
+      throw new Error('Plik nie jest już dostępny. Uruchom zadanie ponownie.');
+    browserDownload('/api/jobs/'+encodeURIComponent(jobId)+'/assets/'+index,filename);
+  }catch(e){message('Nie można rozpocząć pobierania: '+e.message)}
 }
 async function download() {
   if (!jobId || !lastJob || !['complete','cancelled'].includes(lastJob.state)) return;
-  const button=$('download');button.disabled=true;button.textContent='Przygotowywanie pobierania…';
+  const button=$('download');button.disabled=true;
   try {
-    const response=await fetch(`/api/jobs/${jobId}/download`, {credentials:'same-origin'});
-    if(!response.ok) {const data=await response.json();throw new Error(data.detail||'Błąd pobierania')}
-    const blob=await response.blob(); const url=URL.createObjectURL(blob);
-    const link=document.createElement('a');link.href=url;
-    const dir=(lastJob.folder||'Quicksilver_Wyniki').split(/[\\/]/).pop();
-    link.download=`${dir}_wyniki.zip`;document.body.appendChild(link);link.click();link.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),60000);
-  } catch(e){message(`Błąd pobierania: ${e.message}`)}
-  finally {button.disabled=false;button.textContent='↓ Pobierz wszystkie wyniki (ZIP)'}
+    const job=await api('/api/jobs/'+encodeURIComponent(jobId),undefined,'GET');
+    if(!['complete','cancelled'].includes(job.state) || job.bundle_skipped)
+      throw new Error('Zbiorczy ZIP nie jest dostępny. Pobierz paczki osobno.');
+    const dir=(job.folder||'Quicksilver_Wyniki').split(/[\\/]/).pop();
+    browserDownload('/api/jobs/'+encodeURIComponent(jobId)+'/download',dir+'_wyniki.zip');
+    message('Pobieranie zostało przekazane przeglądarce. Postęp sprawdzisz w pobranych plikach.',true);
+  } catch(e){
+    message('Nie można rozpocząć pobierania: '+e.message+'. Jeśli serwer przerwał połączenie, pobierz paczki osobno.');
+  } finally {
+    button.disabled=false;
+  }
 }
 async function boot(){
   const response=await fetch('/api/bootstrap',{credentials:'same-origin'});
