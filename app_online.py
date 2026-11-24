@@ -311,7 +311,9 @@ def worker(job_id, source, sheet, settings):
                 )
         assets = []
         for f in sorted(folder.rglob("wynik.xlsx")) + sorted(folder.rglob("zdjecia.zip")):
-            assets.append({"path": f, "filename": f.name, "location": f.parent.relative_to(folder).as_posix(),
+            # Nie nadpisuj nazw plików z osobnych paczek w katalogu Pobrane.
+            filename = f.name if f.parent == folder else f"{f.stem}_{f.parent.name}{f.suffix}"
+            assets.append({"path": f, "filename": filename, "location": f.parent.relative_to(folder).as_posix(),
                            "kind": "excel" if f.name == "wynik.xlsx" else "photos"})
         with LOCK:
             job["bundle"] = package_path
@@ -525,7 +527,8 @@ def asset_route(job_id: str, index: int, session=Depends(need_session)):
     file = files[index]
     if not file.is_file():
         fail(404, "Plik nie jest dostępny.")
-    return FileResponse(file, filename=file.name)
+    filename = job.get("artifacts", [{}])[index].get("filename", file.name) if index < len(job.get("artifacts", [])) else file.name
+    return FileResponse(file, filename=filename)
 
 
 class AdminLogin(BaseModel):
