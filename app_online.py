@@ -278,6 +278,11 @@ def zip_files(folder, target):
 MAX_BUNDLE_BYTES = 600 * 1_000_000
 
 
+def asset_filename(file: Path, folder: Path) -> str:
+    """Unikalna nazwa dla ZIP i Excel z podfolderów paczek."""
+    return file.name if file.parent == folder else f"{file.stem}_{file.parent.name}{file.suffix}"
+
+
 def should_create_bundle(folder, settings):
     """Large ZIP-mode jobs provide their batch ZIPs directly, without a duplicate archive."""
     if settings.package_type != "zip":
@@ -312,7 +317,7 @@ def worker(job_id, source, sheet, settings):
         assets = []
         for f in sorted(folder.rglob("wynik.xlsx")) + sorted(folder.rglob("zdjecia.zip")):
             # Nie nadpisuj nazw plików z osobnych paczek w katalogu Pobrane.
-            filename = f.name if f.parent == folder else f"{f.stem}_{f.parent.name}{f.suffix}"
+            filename = asset_filename(f, folder)
             assets.append({"path": f, "filename": filename, "location": f.parent.relative_to(folder).as_posix(),
                            "kind": "excel" if f.name == "wynik.xlsx" else "photos"})
         with LOCK:
